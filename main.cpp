@@ -51,9 +51,9 @@ void init() {
   glLightfv(GL_LIGHT0, GL_DIFFUSE, dif);
   glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
 
-  Point3f p0; p0.x =        0.0; p0.y = BASE_SIZE *  r3 / 2.0; p0.z = 0.0; p0.is_new = false;
-  Point3f p1; p1.x = -BASE_SIZE; p1.y = BASE_SIZE * -r3 / 2.0; p1.z = 0.0; p1.is_new = false;
-  Point3f p2; p2.x =  BASE_SIZE; p2.y = BASE_SIZE * -r3 / 2.0; p2.z = 0.0; p2.is_new = false;
+  Point3f p2; p2.x =        0.0; p2.y = BASE_SIZE *  r3 / 2.0; p2.z = 0.0; p2.is_new = false;
+  Point3f p0; p0.x = -BASE_SIZE; p0.y = BASE_SIZE * -r3 / 2.0; p0.z = 0.0; p0.is_new = false;
+  Point3f p1; p1.x =  BASE_SIZE; p1.y = BASE_SIZE * -r3 / 2.0; p1.z = 0.0; p1.is_new = false;
 
   tri.push_back(p0);
   tri.push_back(p1);
@@ -63,15 +63,6 @@ void init() {
 void init_SDL() {
   SDL_Init(SDL_INIT_EVERYTHING);
   SDL_Surface* screen = SDL_SetVideoMode(WIDTH, HEIGHT, 32, SDL_SWSURFACE | SDL_OPENGL);
-}
-
-Point3f extract(Point3f* ref) {
-  Point3f p;
-  p.x = ref->x;
-  p.y = ref->y;
-  p.z = ref->z;
-
-  return p;
 }
 
 void print_point(Point3f p) {
