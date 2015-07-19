@@ -173,8 +173,8 @@ vector<Point3f> split_triangle(vector<Point3f>* tri) {
   // Vertically offset the vertices
   for (i = 0; i < new_points.size(); ++i) {
       new_points.at(i).z += disp * (float(rand()) / float(RAND_MAX)) - (disp / 2.);
-      new_points.at(i).y += 0.1 - 0.05 * (float(rand()) / float(RAND_MAX));
-      new_points.at(i).x += 0.3 - 0.15 * (float(rand()) / float(RAND_MAX));
+      //new_points.at(i).y += 0.5 - 0.25 * (float(rand()) / float(RAND_MAX));
+      //new_points.at(i).x += 0.5 - 0.25 * (float(rand()) / float(RAND_MAX));
   }
 
   disp *= down;
@@ -210,7 +210,7 @@ void display() {
   glLoadIdentity();
 
   glTranslatef(-0.5, -2.0, DEPTH);
-  glRotatef(270, 0.1, 0.0, 0.0);
+  glRotatef(265, 0.1, 0.0, 0.0);
   glRotatef(angle, 0, 0, 1);
   angle += 0.8;
 
