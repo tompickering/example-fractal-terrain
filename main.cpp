@@ -218,9 +218,23 @@ void display() {
             //glColor3f(rand() % 100 / 100.0f, rand() % 100 / 100.0f, rand() % 100 / 100.0f);
             glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, difamb);
             glNormal3f(normal[0], normal[1], normal[2]);
+
+            // Pointy-uppy triangles
             glVertex3f(tri.at(idx0).x, tri.at(idx0).y, tri.at(idx0).z);
             glVertex3f(tri.at(idx1).x, tri.at(idx1).y, tri.at(idx1).z);
             glVertex3f(tri.at(idx2).x, tri.at(idx2).y, tri.at(idx2).z);
+
+            if (j > 0 && (j+1) < i) {
+                idx0 = offset + j; idx1 = offset + j + i - 1; idx2 = offset + j + i;
+                normal = cross_product(tri.at(idx0), tri.at(idx1), tri.at(idx2));
+                glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, difamb);
+                glNormal3f(normal[0], normal[1], normal[2]);
+
+                // Pointy-downy triangles
+                glVertex3f(tri.at(idx0).x, tri.at(idx0).y, tri.at(idx0).z);
+                glVertex3f(tri.at(idx1).x, tri.at(idx1).y, tri.at(idx1).z);
+                glVertex3f(tri.at(idx2).x, tri.at(idx2).y, tri.at(idx2).z);
+            }
         }
         offset += i;
     }
