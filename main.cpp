@@ -24,8 +24,8 @@ const float BASE_SIZE = 3.5f;
 const float DEPTH = -10.0f;
 const int MAX_SUBDIVS = 5;
 
-float disp = 0.5;
-float down = 0.7;
+float disp = 2.5;
+float down = 0.4;
 
 int its = 0;
 float angle = 0.0f;
@@ -130,7 +130,7 @@ vector<Point3f> split_triangle(vector<Point3f>* tri) {
       }
   }
 
-  cout << new_points.size() << " new points" << endl;
+  cout << new_points.size() << " vertices" << endl;
 
 
   // New points inserted
@@ -168,6 +168,13 @@ vector<Point3f> split_triangle(vector<Point3f>* tri) {
           p->is_new = false;
       }
       offset += i;
+  }
+
+  // Vertically offset the vertices
+  for (i = 0; i < new_points.size(); ++i) {
+      new_points.at(i).z += disp * (float(rand()) / float(RAND_MAX)) - (disp / 2.);
+      new_points.at(i).y += 0.1 - 0.05 * (float(rand()) / float(RAND_MAX));
+      new_points.at(i).x += 0.3 - 0.15 * (float(rand()) / float(RAND_MAX));
   }
 
   disp *= down;
