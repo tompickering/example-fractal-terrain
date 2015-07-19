@@ -199,7 +199,8 @@ float* cross_product(Point3f a, Point3f b, Point3f c) {
 }
 
 void display() {
-  int i;
+  int i, j;
+  int idx0, idx1, idx2;
 
   float pos[] = {-2.0, 2.0, -3.0, 1.0};
   float difamb[] = {1.0, 0.5, 0.3, 1.0};
@@ -215,20 +216,27 @@ void display() {
   glRotatef(angle, 0, 0, 1);
   angle += 0.8;
 
+  int base = calc_base(tri.size());
+  int offset = 0;
+
   glBegin(GL_TRIANGLES);
-    for (i = 0; i < tri.size(); i += 3) {
-      normal = cross_product(tri.at(i), tri.at(i + 1), tri.at(i + 2));
-      //glColor3f(rand() % 100 / 100.0f, rand() % 100 / 100.0f, rand() % 100 / 100.0f);
-      glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, difamb);
-      glNormal3f(normal[0], normal[1], normal[2]);
-      glVertex3f(tri.at(i).x, tri.at(i).y, tri.at(i).z);
-      glVertex3f(tri.at(i + 1).x, tri.at(i + 1).y, tri.at(i + 1).z);
-      glVertex3f(tri.at(i + 2).x, tri.at(i + 2).y, tri.at(i + 2).z);
+    for (i = base; i > 0; --i) {
+        for (j = 0; j < i - 1; ++j) {
+            idx0 = offset + j; idx1 = offset + j + 1; idx2 = offset + j + i;
+            normal = cross_product(tri.at(idx0), tri.at(idx1), tri.at(idx2));
+            //glColor3f(rand() % 100 / 100.0f, rand() % 100 / 100.0f, rand() % 100 / 100.0f);
+            glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, difamb);
+            glNormal3f(normal[0], normal[1], normal[2]);
+            glVertex3f(tri.at(idx0).x, tri.at(idx0).y, tri.at(idx0).z);
+            glVertex3f(tri.at(idx1).x, tri.at(idx1).y, tri.at(idx1).z);
+            glVertex3f(tri.at(idx2).x, tri.at(idx2).y, tri.at(idx2).z);
+        }
+        offset += i;
     }
   glEnd();
   glFlush();
 
-  if /*(its < MAX_SUBDIVS)*/ (split) { ++its; split = false; tri = split_triangle(&tri); print_tri();}
+  if /*(its < MAX_SUBDIVS)*/ (split) { ++its; split = false; tri = split_triangle(&tri);}
 
   //SDL_Delay(1000);
 }
