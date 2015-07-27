@@ -14,6 +14,8 @@ using std::endl;
 using std::vector;
 
 
+// ---------- TYPEDEFS ----------
+
 /* The 3D points from which our
  * triangle-based terrain mesh
  * will be built.
@@ -26,80 +28,129 @@ typedef struct {
 } Point3f;
 
 
+
+// ---------- CONSTS ----------
+
 // Parameters for OpenGL rendering
-const float BASE_SIZE = 3.5f;
+const float BASE_SIZE = 7.f;
 const float DEPTH = -10.f;
 const float CAM_PITCH = 265.f;
 const float DELTA_ROTATE = 0.8f;
 
 
-// Subdivision iterations
+/* Subdivision iterations if manual
+ * stepping is not enabled (default)
+ */
 const int MAX_SUBDIVS = 5;
 
 
-// Magnitude of vertical vertex
-// displacement
+
+// ---------- GLOBAL VARS ----------
+
+/* Initial magnitude of vertical
+ * vertex displacement. This value
+ * will be reduced over time by
+ * 'disp_dampening_coeff'
+ */
 float disp = 2.5;
 
 
-// Damping factor by which 'disp'
-// will be multiplied on each
-// iteration.
-float down = 0.4;
+/* Damping factor by which 'disp'
+ * will be multiplied on each
+ * iteration.
+ */
+float disp_dampening_coeff = 0.45;
 
 
+/* Control flag used if manual
+ * splitting is enabled ('-s')
+ */
 bool split = false;
 
+
+/* The triangular-mesh terrain.
+ * Since this is going to be inserted
+ * into a lot, it would be reasonable
+ * to claim that a linked list would
+ * be more appropriate here. However
+ * since in this program we will be
+ * repeatedly iterating over the
+ * vertices for the OpenGL rendering,
+ * I've stuck with the good old vector.
+ * Perhaps the most effective solution
+ * woule be to generate the mesh in a
+ * list and transfer this into a vector
+ * between generation and rendering,
+ * but I don't want to overcomplicate
+ * things.
+ */
 vector<Point3f> tri;
 
-void init() {
-    float r3 = 1.73205;
 
-    glClearColor(0.0, 0.0, 0.2, 1.0); glMatrixMode(GL_PROJECTION); glLoadIdentity();
-    gluPerspective(45, (double) WIDTH/(double) HEIGHT, 1.0, 500.0);
-    glMatrixMode(GL_MODELVIEW);
+// ---------- DEBUG FUNCTIONS ----------
 
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-
-    float dif[] = {1.0, 1.0, 1.0, 1.0};
-    float amb[] = {0.2, 0.2, 0.2, 1.0};
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, dif);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
-
-    Point3f p2; p2.x =        0.0; p2.y = BASE_SIZE *  r3 / 2.0; p2.z = 0.0; p2.is_new = false;
-    Point3f p0; p0.x = -BASE_SIZE; p0.y = BASE_SIZE * -r3 / 2.0; p0.z = 0.0; p0.is_new = false;
-    Point3f p1; p1.x =  BASE_SIZE; p1.y = BASE_SIZE * -r3 / 2.0; p1.z = 0.0; p1.is_new = false;
-
-    tri.push_back(p0);
-    tri.push_back(p1);
-    tri.push_back(p2);
+void print_point(Point3f p) {
+    printf("X %+5.5f, Y %+5.5f, Z %+5.5f, N %d\n",
+            p.x,      p.y,      p.z,      p.is_new);
 }
 
+void print_tri() {
+    printf("TRIANGLE STATE:\n");
+    for (int i = 0; i < tri.size(); ++i)
+        print_point(tri.at(i));
+}
+
+
+
+// ---------- INIT FUNCTIONS ----------
+
+// Initialise SDL
 void init_SDL() {
     SDL_Init(SDL_INIT_EVERYTHING);
     SDL_Surface* screen = SDL_SetVideoMode(WIDTH, HEIGHT, 32, SDL_SWSURFACE | SDL_OPENGL);
 }
 
-void print_point(Point3f p) {
-    printf("X %+5.5f, Y %+5.5f, Z %+5.5f, N %d\n", p.x, p.y, p.z, p.is_new);
+// Initialise OpenGL rendering and lighting
+void init_OpenGL() {
+    glClearColor(0.0, 0.0, 0.2, 1.0); glMatrixMode(GL_PROJECTION); glLoadIdentity();
+    gluPerspective(45, (double) WIDTH/(double) HEIGHT, 1.0, 500.0);
+    glMatrixMode(GL_MODELVIEW);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    float dif[] = {1.0, 1.0, 1.0, 1.0};
+    float amb[] = {0.2, 0.2, 0.2, 1.0};
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, dif);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
 }
 
-void print_tri() {
-    int i;
+// Initialise triangular-mesh terrain
+void init() {
+    // Height of the equilateral triangle
+    // relative to its base. Split the
+    // triangle vertically down the middle,
+    // use trigonometry to calculate the
+    // height relative to half the base:
+    // tan(60deg) = sqrt(3) ~ 1.7320508075688767
+    // Then devide by two for height relative
+    // to entire base:
+    const float H = 0.8660254037844384;
 
-    printf("TRIANGLE STATE:\n");
-
-    for (i = 0; i < tri.size(); ++i) {
-        print_point(tri.at(i));
-        if ((i + 1) % 3 == 0) printf("\n");
-    }
+    // 3 points for the initial one-triangle 'mesh'
+    Point3f p0; p0.x = -BASE_SIZE / 2.0; p0.y = BASE_SIZE * -H / 2.0; p0.z = 0.0; p0.is_new = false;
+    Point3f p1; p1.x =  BASE_SIZE / 2.0; p1.y = BASE_SIZE * -H / 2.0; p1.z = 0.0; p1.is_new = false;
+    Point3f p2; p2.x =        0.0      ; p2.y = BASE_SIZE *  H / 2.0; p2.z = 0.0; p2.is_new = false;
+    tri.push_back(p0);
+    tri.push_back(p1);
+    tri.push_back(p2);
 }
 
+
+
+// ---------- 'UTILITY' FUNCTIONS ----------
 
 /* Calculates 'n' for the triangle, where 'n'
-   is the number of points along a side.
+   is the number of vertices along an edge.
 */
 int calc_base(int size) {
     int total = 0;
@@ -111,6 +162,82 @@ int calc_base(int size) {
     return base;
 }
 
+// Calculate the cross-product of three 3D vectors
+float* cross_product(Point3f a, Point3f b, Point3f c) {
+    float* v = new float[3];
+
+    float* ab = new float[3];
+    float* ac = new float[3];
+    ab[0] = b.x - a.x; ab[1] = b.y - a.y; ab[2] = b.z - a.z;
+    ac[0] = c.x - a.x; ac[1] = c.y - a.y; ac[2] = c.z - a.z;
+
+    v[0] = (ab[1] * ac[2]) - (ab[2] * ac[1]);
+    v[1] = (ab[2] * ac[0]) - (ab[0] * ac[2]);
+    v[2] = (ab[0] * ac[1]) - (ab[1] * ac[0]);
+
+    return v;
+}
+
+
+// Render the terrain using OpenGL.
+void display(vector<Point3f>* tri) {
+    int i, j;
+    int idx0, idx1, idx2;
+
+    float pos[] = {-2.0, 2.0, -3.0, 1.0};
+    float difamb[] = {1.0, 0.5, 0.3, 1.0};
+    float* normal;
+
+    static float angle = 0.f;
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLightfv(GL_LIGHT0, GL_POSITION, pos);
+
+    glLoadIdentity();
+
+    glTranslatef(-0.5, -2.0, DEPTH);
+    glRotatef(CAM_PITCH, 0.1, 0.0, 0.0);
+    glRotatef(angle, 0, 0, 1);
+    angle += DELTA_ROTATE;
+
+    int base = calc_base((*tri).size());
+    int offset = 0;
+
+    glBegin(GL_TRIANGLES);
+    for (i = base; i > 0; --i) {
+        for (j = 0; j < i - 1; ++j) {
+            idx0 = offset + j; idx1 = offset + j + 1; idx2 = offset + j + i;
+            normal = cross_product((*tri).at(idx0), (*tri).at(idx1), (*tri).at(idx2));
+            glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, difamb);
+            glNormal3f(normal[0], normal[1], normal[2]);
+
+            // Pointy-uppy triangles
+            glVertex3f((*tri).at(idx0).x, (*tri).at(idx0).y, (*tri).at(idx0).z);
+            glVertex3f((*tri).at(idx1).x, (*tri).at(idx1).y, (*tri).at(idx1).z);
+            glVertex3f((*tri).at(idx2).x, (*tri).at(idx2).y, (*tri).at(idx2).z);
+
+            if (j > 0 && (j+1) < i) {
+                idx0 = offset + j; idx1 = offset + j + i - 1; idx2 = offset + j + i;
+                normal = cross_product((*tri).at(idx0), (*tri).at(idx1), (*tri).at(idx2));
+                glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, difamb);
+                glNormal3f(normal[0], normal[1], normal[2]);
+
+                // Pointy-downy triangles
+                glVertex3f((*tri).at(idx0).x, (*tri).at(idx0).y, (*tri).at(idx0).z);
+                glVertex3f((*tri).at(idx1).x, (*tri).at(idx1).y, (*tri).at(idx1).z);
+                glVertex3f((*tri).at(idx2).x, (*tri).at(idx2).y, (*tri).at(idx2).z);
+            }
+        }
+        offset += i;
+    }
+    glEnd();
+    glFlush();
+    SDL_GL_SwapBuffers();
+}
+
+
+
+// ---------- CORE ALGORITHM ----------
 
 /* Take a vector of points representing a
  * triangle-based terrain and operate on it
@@ -191,7 +318,7 @@ void subdivide_terrain(vector<Point3f>* tri) {
      * we never insert * a new row below the base
      * edge or above the tip).
      *
-     * Moving from a flat edge to the tip, row 0
+     * Moving from the base edge to the tip, row 0
      * and all other even-numbered rows will
      * alternate old-new, whilst row 1 and all
      * other odd-numbered rows will consist
@@ -234,103 +361,47 @@ void subdivide_terrain(vector<Point3f>* tri) {
 }
 
 
+// Vertically offset the vertices of the mesh
 void distort_terrain(vector<Point3f>* tri) {
-    // Vertically offset the vertices
-    for (int i = 0; i < (*tri).size(); ++i) {
+    /* Increase each 'z' co-ordinate according to 'disp',
+     * subtract disp/2 uniformly in order to keep the mesh
+     * in the centre of the camera view field (otherwise 'z'
+     * is continually increased and the mesh creeps upwards).
+     */
+    for (int i = 0; i < (*tri).size(); ++i)
         (*tri).at(i).z += disp * (float(rand()) / float(RAND_MAX)) - (disp / 2.);
-        //(*tri).at(i).y += 0.5 - 0.25 * (float(rand()) / float(RAND_MAX));
-        //(*tri).at(i).x += 0.5 - 0.25 * (float(rand()) / float(RAND_MAX));
-    }
 
-    disp *= down;
+    /* Decrease the magnitude of
+     * displacement for the next
+     * iteration.
+     */
+    disp *= disp_dampening_coeff;
 }
 
 
-/* Simple function to calculate the cross-product
- * of three 3D vectors
- */
-float* cross_product(Point3f a, Point3f b, Point3f c) {
-    float* v = new float[3];
-
-    float* ab = new float[3];
-    float* ac = new float[3];
-    ab[0] = b.x - a.x; ab[1] = b.y - a.y; ab[2] = b.z - a.z;
-    ac[0] = c.x - a.x; ac[1] = c.y - a.y; ac[2] = c.z - a.z;
-
-    v[0] = (ab[1] * ac[2]) - (ab[2] * ac[1]);
-    v[1] = (ab[2] * ac[0]) - (ab[0] * ac[2]);
-    v[2] = (ab[0] * ac[1]) - (ab[1] * ac[0]);
-
-    return v;
-}
-
-
-/* Using OpenGL, render the terrain.
- */
-void display(vector<Point3f>* tri) {
-    int i, j;
-    int idx0, idx1, idx2;
-
-    float pos[] = {-2.0, 2.0, -3.0, 1.0};
-    float difamb[] = {1.0, 0.5, 0.3, 1.0};
-    float* normal;
-
-    static float angle = 0.f;
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glLightfv(GL_LIGHT0, GL_POSITION, pos);
-
-    glLoadIdentity();
-
-    glTranslatef(-0.5, -2.0, DEPTH);
-    glRotatef(CAM_PITCH, 0.1, 0.0, 0.0);
-    glRotatef(angle, 0, 0, 1);
-    angle += DELTA_ROTATE;
-
-    int base = calc_base((*tri).size());
-    int offset = 0;
-
-    glBegin(GL_TRIANGLES);
-    for (i = base; i > 0; --i) {
-        for (j = 0; j < i - 1; ++j) {
-            idx0 = offset + j; idx1 = offset + j + 1; idx2 = offset + j + i;
-            normal = cross_product((*tri).at(idx0), (*tri).at(idx1), (*tri).at(idx2));
-            glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, difamb);
-            glNormal3f(normal[0], normal[1], normal[2]);
-
-            // Pointy-uppy triangles
-            glVertex3f((*tri).at(idx0).x, (*tri).at(idx0).y, (*tri).at(idx0).z);
-            glVertex3f((*tri).at(idx1).x, (*tri).at(idx1).y, (*tri).at(idx1).z);
-            glVertex3f((*tri).at(idx2).x, (*tri).at(idx2).y, (*tri).at(idx2).z);
-
-            if (j > 0 && (j+1) < i) {
-                idx0 = offset + j; idx1 = offset + j + i - 1; idx2 = offset + j + i;
-                normal = cross_product((*tri).at(idx0), (*tri).at(idx1), (*tri).at(idx2));
-                glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, difamb);
-                glNormal3f(normal[0], normal[1], normal[2]);
-
-                // Pointy-downy triangles
-                glVertex3f((*tri).at(idx0).x, (*tri).at(idx0).y, (*tri).at(idx0).z);
-                glVertex3f((*tri).at(idx1).x, (*tri).at(idx1).y, (*tri).at(idx1).z);
-                glVertex3f((*tri).at(idx2).x, (*tri).at(idx2).y, (*tri).at(idx2).z);
-            }
-        }
-        offset += i;
-    }
-    glEnd();
-    glFlush();
-}
-
-
-int main(void) {
+int main(int argc, char** argv) {
     bool running = true;
     Uint32 start;
     SDL_Event event;
 
+    // Manual subdivision?
+    bool MANUAL_STEPPING = false;
+    if (argc > 1 && !strcmp(argv[1], "-s"))
+        MANUAL_STEPPING = true;
+
+    if (MANUAL_STEPPING)
+        cout << "Press 's' to trigger a subdivision" << endl;
+    else
+        cout << "Run with '-s' to manually trigger each individual subdivision" << endl;
+
+    // Initialise stuff
     init_SDL();
+    init_OpenGL();
     init();
 
-    for (int i = 0; i < MAX_SUBDIVS; ++i) {
+    // Generate the fractal terrain;
+    // subdivide, distort, repeat
+    for (int i = 0; !MANUAL_STEPPING && i < MAX_SUBDIVS; ++i) {
         subdivide_terrain(&tri);
         distort_terrain(&tri);
     }
@@ -354,16 +425,16 @@ int main(void) {
                     break;
             }
         }
-        //if (its < MAX_SUBDIVS || split) {
-        //    ++its;
-        //    split = false;
-        //    subdivide_triangle(&tri);
-        //}
+
+        if (MANUAL_STEPPING && split) {
+            split = false;
+            subdivide_terrain(&tri);
+            distort_terrain(&tri);
+        }
 
         display(&tri);
 
-        SDL_GL_SwapBuffers();
-
+        // Update speed regulation
         if (1000 / 60 > (SDL_GetTicks() - start))
             SDL_Delay(1000 / 60 - (SDL_GetTicks() - start));
     }
